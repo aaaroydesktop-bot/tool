@@ -4,6 +4,8 @@ import os
 import sys
 import concurrent.futures
 import requests
+import platform
+import subprocess
 from colorama import Fore, Style, init
 
 # Colorama Auto-reset
@@ -21,7 +23,7 @@ def display_banner():
     | |\  |  __/ |_ ___) | (_| (_| | | | |
     |_| \_|\___|\__|____/ \___\__,_|_| |_|
     """)
-    print(Fore.YELLOW + "      Advanced Termux Network Toolkit v2.0")
+    print(Fore.YELLOW + "      Advanced Termux Network Toolkit v2.5")
     print(Fore.WHITE + "      ------------------------------------\n")
 
 def get_target_ip():
@@ -135,6 +137,67 @@ def subdomain_scanner():
     if not found:
         print(Fore.RED + "[-] No common subdomains found.")
 
+# --- নতুন যুক্ত করা লোকাল নেটওয়ার্ক স্ক্যানার অংশ শুরু ---
+def ping_ip(ip):
+    param = '-c' if platform.system().lower() != 'windows' else '-n'
+    command = ['ping', param, '1', '-W', '1', ip]
+    response = subprocess.call(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    if response == 0:
+        return ip
+    return None
+
+def get_device_name(ip):
+    try:
+        hostname = socket.gethostbyaddr(ip)[0]
+        return hostname
+    except socket.herror:
+        return "Unknown Device"
+
+def scan_local_network():
+    print(Fore.YELLOW + "\n[*] Fetching Local Network Details...")
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(('10.255.255.255', 1))
+        my_ip = s.getsockname()[0]
+    except Exception:
+        my_ip = '127.0.0.1'
+    finally:
+        s.close()
+
+    print(Fore.GREEN + f"[*] Your Device IP: {my_ip}")
+    
+    if my_ip == '127.0.0.1':
+        print(Fore.RED + "[-] Please connect to a WiFi or Hotspot network first.")
+        return
+
+    ip_parts = my_ip.split('.')
+    base_ip = f"{ip_parts[0]}.{ip_parts[1]}.{ip_parts[2]}."
+
+    print(Fore.YELLOW + f"[*] Scanning Subnet: {base_ip}0/24...")
+    print(Fore.YELLOW + "[*] Please wait, checking for active devices and their names...\n")
+
+    active_ips = []
+    
+    with concurrent.futures.ThreadPoolExecutor(max_workers=100) as executor:
+        ips_to_scan = [f"{base_ip}{i}" for i in range(1, 255)]
+        results = executor.map(ping_ip, ips_to_scan)
+        
+        for result in results:
+            if result:
+                active_ips.append(result)
+
+    if active_ips:
+        print(Fore.GREEN + Style.BRIGHT + "--- 📱 ACTIVE DEVICES FOUND ---")
+        for ip in active_ips:
+            device_name = get_device_name(ip)
+            if ip == my_ip:
+                print(Fore.CYAN + f"[+] {ip} - {Fore.WHITE}{device_name} {Fore.YELLOW}(Your Device)")
+            else:
+                print(Fore.CYAN + f"[+] {ip} - {Fore.WHITE}{device_name}")
+    else:
+        print(Fore.RED + "[-] No other devices found on this network.")
+# --- নতুন যুক্ত করা লোকাল নেটওয়ার্ক স্ক্যানার অংশ শেষ ---
+
 def get_my_ip():
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -158,9 +221,10 @@ def main():
         print(Fore.WHITE + " 7. 📜 HTTP Header Grabber")
         print(Fore.WHITE + " 8. 🔍 DNS & Reverse DNS Lookup")
         print(Fore.WHITE + " 9. 🕸️  Basic Subdomain Scanner")
-        print(Fore.WHITE + "10. ❌ Exit\n")
+        print(Fore.WHITE + "10. 📡 Local Network Scanner (Ping Sweep)")
+        print(Fore.WHITE + "11. ❌ Exit\n")
         
-        choice = input(Fore.GREEN + "Select an option (1-10): " + Style.RESET_ALL)
+        choice = input(Fore.GREEN + "Select an option (1-11): " + Style.RESET_ALL)
         
         if choice == '1':
             get_my_ip()
@@ -187,12 +251,14 @@ def main():
         elif choice == '9':
             subdomain_scanner()
         elif choice == '10':
+            scan_local_network()
+        elif choice == '11':
             print(Fore.RED + "\n[!] Exiting NetScan... Happy Hacking!\n")
             sys.exit()
         else:
             print(Fore.RED + "\n[!] Invalid choice! Try again.")
         
-        if choice != '10':
+        if choice != '11':
             input(Fore.YELLOW + "\nPress Enter to return to menu...")
 
 if __name__ == '__main__':
