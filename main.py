@@ -24,7 +24,7 @@ def display_banner():
     | |\  |  __/ |_ ___) | (_| (_| | | | |
     |_| \_|\___|\__|____/ \___\__,_|_| |_|
     """)
-    print(Fore.YELLOW + "      Advanced Termux Network Toolkit v3.0 (Pro)")
+    print(Fore.YELLOW + "      Advanced Termux Network Toolkit v3.5 (Pro)")
     print(Fore.WHITE + "      ------------------------------------------\n")
 
 def get_target_ip():
@@ -138,7 +138,6 @@ def subdomain_scanner():
     if not found:
         print(Fore.RED + "[-] No common subdomains found.")
 
-# --- উন্নত লোকাল নেটওয়ার্ক স্ক্যানার (MAC ও Brand API সহ) ---
 def ping_ip(ip):
     param = '-c' if platform.system().lower() != 'windows' else '-n'
     command = ['ping', param, '1', '-W', '1', ip]
@@ -148,7 +147,6 @@ def ping_ip(ip):
     return None
 
 def get_mac_address(ip):
-    # লিনাক্স বা অ্যান্ড্রয়েডের ARP ফাইল থেকে MAC Address বের করার চেষ্টা
     try:
         with open('/proc/net/arp', 'r') as f:
             for line in f.readlines():
@@ -163,20 +161,16 @@ def get_mac_address(ip):
     return None
 
 def get_device_info(ip):
-    # ১. প্রথমে Hostname খোঁজার চেষ্টা
     try:
         hostname = socket.gethostbyaddr(ip)[0]
     except socket.herror:
         hostname = "Unknown"
 
-    # ২. MAC Address খোঁজা
     mac = get_mac_address(ip)
-    
-    # ৩. MAC পেলে API দিয়ে কোম্পানির নাম বের করা
     brand = "Unknown Brand"
     if mac:
         try:
-            time.sleep(0.5) # API Rate limit এড়াতে ছোট্ট বিরতি
+            time.sleep(0.5) 
             res = requests.get(f"https://api.macvendors.com/{mac}", timeout=3)
             if res.status_code == 200:
                 brand = res.text.strip()
@@ -230,7 +224,6 @@ def scan_local_network():
                 print(Fore.GREEN + f"[+] {ip} - {info}")
     else:
         print(Fore.RED + "[-] No other devices found on this network.")
-# --------------------------------------------------------
 
 def get_my_ip():
     try:
@@ -242,6 +235,27 @@ def get_my_ip():
     finally:
         s.close()
     print(Fore.GREEN + Style.BRIGHT + f"\n[+] Your Local Network IP is: {ip_addr}")
+
+# --- নতুন About সেকশন ---
+def about_tool():
+    clear_screen()
+    print(Fore.CYAN + Style.BRIGHT + r"""
+     _   _      _   ____                  
+    | \ | | ___| |_/ ___|  ___ __ _ _ __  
+    |  \| |/ _ \ __\___ \ / __/ _` | '_ \ 
+    | |\  |  __/ |_ ___) | (_| (_| | | | |
+    |_| \_|\___|\__|____/ \___\__,_|_| |_|
+    """)
+    print(Fore.YELLOW + "      Advanced Termux Network Toolkit")
+    print(Fore.WHITE + "      -------------------------------\n")
+    print(Fore.GREEN + "      [+] Developer : " + Fore.WHITE + Style.BRIGHT + "Anupom Roy")
+    print(Fore.GREEN + "      [+] Role      : " + Fore.WHITE + "Software & Mobile App Developer")
+    print(Fore.GREEN + "      [+] Version   : " + Fore.WHITE + "3.5 (Pro)")
+    print(Fore.GREEN + "      [+] Platform  : " + Fore.WHITE + "Termux / Linux")
+    print(Fore.GREEN + "      [+] GitHub    : " + Fore.WHITE + "https://github.com/aaaroydesktop-bot/tool\n")
+    print(Fore.CYAN + "      A powerful, colorful, and highly optimized")
+    print(Fore.CYAN + "      network toolkit designed specifically for Termux.")
+    print(Fore.CYAN + "      Happy Hacking! Stay Safe & Legal.\n")
 
 def main():
     while True:
@@ -256,9 +270,10 @@ def main():
         print(Fore.WHITE + " 8. 🔍 DNS & Reverse DNS Lookup")
         print(Fore.WHITE + " 9. 🕸️  Basic Subdomain Scanner")
         print(Fore.WHITE + "10. 📡 Local Network Scanner (Pro)")
-        print(Fore.WHITE + "11. ❌ Exit\n")
+        print(Fore.WHITE + "11. 👨‍💻 About Developer")
+        print(Fore.WHITE + "12. ❌ Exit\n")
         
-        choice = input(Fore.GREEN + "Select an option (1-11): " + Style.RESET_ALL)
+        choice = input(Fore.GREEN + "Select an option (1-12): " + Style.RESET_ALL)
         
         if choice == '1':
             get_my_ip()
@@ -287,12 +302,14 @@ def main():
         elif choice == '10':
             scan_local_network()
         elif choice == '11':
+            about_tool()
+        elif choice == '12':
             print(Fore.RED + "\n[!] Exiting NetScan... Happy Hacking!\n")
             sys.exit()
         else:
             print(Fore.RED + "\n[!] Invalid choice! Try again.")
         
-        if choice != '11':
+        if choice != '12':
             input(Fore.YELLOW + "\nPress Enter to return to menu...")
 
 if __name__ == '__main__':
