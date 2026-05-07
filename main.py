@@ -6,6 +6,7 @@ import concurrent.futures
 import requests
 import platform
 import subprocess
+import time
 from colorama import Fore, Style, init
 
 # Colorama Auto-reset
@@ -23,8 +24,8 @@ def display_banner():
     | |\  |  __/ |_ ___) | (_| (_| | | | |
     |_| \_|\___|\__|____/ \___\__,_|_| |_|
     """)
-    print(Fore.YELLOW + "      Advanced Termux Network Toolkit v2.5")
-    print(Fore.WHITE + "      ------------------------------------\n")
+    print(Fore.YELLOW + "      Advanced Termux Network Toolkit v3.0 (Pro)")
+    print(Fore.WHITE + "      ------------------------------------------\n")
 
 def get_target_ip():
     target = input(Fore.GREEN + "\nEnter Target IP or Domain (e.g., google.com or 192.168.1.1): " + Style.RESET_ALL)
@@ -137,7 +138,7 @@ def subdomain_scanner():
     if not found:
         print(Fore.RED + "[-] No common subdomains found.")
 
-# --- নতুন যুক্ত করা লোকাল নেটওয়ার্ক স্ক্যানার অংশ শুরু ---
+# --- উন্নত লোকাল নেটওয়ার্ক স্ক্যানার (MAC ও Brand API সহ) ---
 def ping_ip(ip):
     param = '-c' if platform.system().lower() != 'windows' else '-n'
     command = ['ping', param, '1', '-W', '1', ip]
@@ -146,12 +147,45 @@ def ping_ip(ip):
         return ip
     return None
 
-def get_device_name(ip):
+def get_mac_address(ip):
+    # লিনাক্স বা অ্যান্ড্রয়েডের ARP ফাইল থেকে MAC Address বের করার চেষ্টা
+    try:
+        with open('/proc/net/arp', 'r') as f:
+            for line in f.readlines():
+                if ip in line:
+                    parts = line.split()
+                    if len(parts) >= 4:
+                        mac = parts[3]
+                        if mac != "00:00:00:00:00:00":
+                            return mac
+    except:
+        pass
+    return None
+
+def get_device_info(ip):
+    # ১. প্রথমে Hostname খোঁজার চেষ্টা
     try:
         hostname = socket.gethostbyaddr(ip)[0]
-        return hostname
     except socket.herror:
-        return "Unknown Device"
+        hostname = "Unknown"
+
+    # ২. MAC Address খোঁজা
+    mac = get_mac_address(ip)
+    
+    # ৩. MAC পেলে API দিয়ে কোম্পানির নাম বের করা
+    brand = "Unknown Brand"
+    if mac:
+        try:
+            time.sleep(0.5) # API Rate limit এড়াতে ছোট্ট বিরতি
+            res = requests.get(f"https://api.macvendors.com/{mac}", timeout=3)
+            if res.status_code == 200:
+                brand = res.text.strip()
+        except:
+            brand = "Vendor API Failed"
+            
+        return f"{Fore.WHITE}Name: {hostname} | {Fore.MAGENTA}Brand: {brand} | {Fore.CYAN}MAC: {mac}"
+    else:
+        return f"{Fore.WHITE}Name: {hostname} | {Fore.RED}MAC: Hidden by OS"
 
 def scan_local_network():
     print(Fore.YELLOW + "\n[*] Fetching Local Network Details...")
@@ -174,7 +208,7 @@ def scan_local_network():
     base_ip = f"{ip_parts[0]}.{ip_parts[1]}.{ip_parts[2]}."
 
     print(Fore.YELLOW + f"[*] Scanning Subnet: {base_ip}0/24...")
-    print(Fore.YELLOW + "[*] Please wait, checking for active devices and their names...\n")
+    print(Fore.YELLOW + "[*] Please wait... Resolving MAC Addresses & Brands... (May take a minute)\n")
 
     active_ips = []
     
@@ -189,14 +223,14 @@ def scan_local_network():
     if active_ips:
         print(Fore.GREEN + Style.BRIGHT + "--- 📱 ACTIVE DEVICES FOUND ---")
         for ip in active_ips:
-            device_name = get_device_name(ip)
             if ip == my_ip:
-                print(Fore.CYAN + f"[+] {ip} - {Fore.WHITE}{device_name} {Fore.YELLOW}(Your Device)")
+                print(Fore.CYAN + f"[+] {ip} - {Fore.YELLOW}(Your Device)")
             else:
-                print(Fore.CYAN + f"[+] {ip} - {Fore.WHITE}{device_name}")
+                info = get_device_info(ip)
+                print(Fore.GREEN + f"[+] {ip} - {info}")
     else:
         print(Fore.RED + "[-] No other devices found on this network.")
-# --- নতুন যুক্ত করা লোকাল নেটওয়ার্ক স্ক্যানার অংশ শেষ ---
+# --------------------------------------------------------
 
 def get_my_ip():
     try:
@@ -221,7 +255,7 @@ def main():
         print(Fore.WHITE + " 7. 📜 HTTP Header Grabber")
         print(Fore.WHITE + " 8. 🔍 DNS & Reverse DNS Lookup")
         print(Fore.WHITE + " 9. 🕸️  Basic Subdomain Scanner")
-        print(Fore.WHITE + "10. 📡 Local Network Scanner (Ping Sweep)")
+        print(Fore.WHITE + "10. 📡 Local Network Scanner (Pro)")
         print(Fore.WHITE + "11. ❌ Exit\n")
         
         choice = input(Fore.GREEN + "Select an option (1-11): " + Style.RESET_ALL)
