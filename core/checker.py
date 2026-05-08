@@ -1,26 +1,50 @@
+import importlib
 import sys
 
-required_modules = [
+from .console import console
+
+# =========================================
+# REQUIRED MODULES
+# =========================================
+
+REQUIRED_MODULES = [
     "rich",
     "requests",
-    "psutil",
-    "whois"
+    "aiohttp",
+    "whois",
+    "jinja2",
+    "scapy",
+    "urllib3"
 ]
+
+# =========================================
+# CHECK MODULES
+# =========================================
 
 def check_modules():
 
-    for module in required_modules:
+    missing = []
+
+    for module in REQUIRED_MODULES:
 
         try:
 
-            __import__(module)
+            importlib.import_module(module)
 
         except ImportError:
 
-            print(f"Missing Module: {module}")
+            missing.append(module)
 
-            print(
-                "Run: pip install -r requirements.txt"
-            )
+    if missing:
 
-            sys.exit()
+        console.print(
+            f"[red]Missing Modules:[/red] "
+            f"{', '.join(missing)}"
+        )
+
+        console.print(
+            "[yellow]Run:[/yellow] "
+            "pip install -r requirements.txt"
+        )
+
+        sys.exit()
