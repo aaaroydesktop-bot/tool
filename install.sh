@@ -81,6 +81,7 @@ net-tools
 dnsutils
 traceroute
 tsu
+libpcap
 )
 
 for pkgname in "${packages[@]}"
@@ -138,15 +139,23 @@ echo -e "${YELLOW}[*] Setting Executable Permissions...${RESET}"
 chmod +x main.py
 
 # =========================================
-# CREATE LAUNCHER
+# DETECT PROJECT PATH
+# =========================================
+
+TOOL_PATH=$(pwd)
+
+echo -e "${CYAN}[+] Project Path:${RESET} ${TOOL_PATH}"
+
+# =========================================
+# CREATE GLOBAL COMMAND
 # =========================================
 
 echo -e "${YELLOW}[*] Creating Global Command...${RESET}"
 
-cat > $PREFIX/bin/netscan << 'EOF'
+cat > $PREFIX/bin/netscan << EOF
 #!/data/data/com.termux/files/usr/bin/bash
 
-cd ~/TOOL
+cd $TOOL_PATH
 
 python main.py
 EOF
@@ -154,7 +163,21 @@ EOF
 chmod +x $PREFIX/bin/netscan
 
 # =========================================
-# INSTALL COMPLETE
+# VERIFY INSTALL
+# =========================================
+
+if [ -f "$PREFIX/bin/netscan" ]; then
+
+    INSTALL_STATUS="SUCCESS"
+
+else
+
+    INSTALL_STATUS="FAILED"
+
+fi
+
+# =========================================
+# COMPLETE
 # =========================================
 
 clear
@@ -165,26 +188,59 @@ echo "         NETSCAN INSTALL COMPLETE"
 echo "=============================================="
 echo -e "${RESET}"
 
-echo -e "${GREEN}[✓] Toolkit Installed Successfully${RESET}"
+if [ "$INSTALL_STATUS" = "SUCCESS" ]; then
 
-echo -e "${CYAN}"
-echo "Run Tool Using:"
+    echo -e "${GREEN}[✓] Toolkit Installed Successfully${RESET}"
+
+else
+
+    echo -e "${RED}[✗] Installation Failed${RESET}"
+
+fi
+
+echo
+
+echo -e "${CYAN}Run Tool Using:${RESET}"
 echo -e "${YELLOW}netscan${RESET}"
 
-echo -e "${CYAN}"
-echo "Project Folder:"
-echo -e "${YELLOW}~/TOOL${RESET}"
+echo
 
-echo -e "${GREEN}"
-echo "Features Installed:"
-echo "✓ Port Scanner"
+echo -e "${CYAN}Project Folder:${RESET}"
+echo -e "${YELLOW}${TOOL_PATH}${RESET}"
+
+echo
+
+echo -e "${GREEN}Installed Features:${RESET}"
+
+echo "✓ Smart Port Scanner"
+echo "✓ Full Port Scanner"
 echo "✓ Ping Tools"
 echo "✓ DNS Lookup"
-echo "✓ GeoIP"
-echo "✓ Speed Test"
+echo "✓ GeoIP Lookup"
+echo "✓ HTTP Header Grabber"
+echo "✓ Subdomain Scanner"
 echo "✓ Local Network Scan"
 echo "✓ Traceroute"
 echo "✓ Vendor Detection"
+echo "✓ Internet Speed Test"
 echo "✓ AI Assistant"
+echo "✓ System Monitor"
 echo "✓ Plugin System"
-echo -e "${RESET}"
+echo "✓ SQLite History"
+echo "✓ Rich UI Dashboard"
+
+echo
+
+echo -e "${CYAN}Requirements Installed:${RESET}"
+
+echo "✓ rich"
+echo "✓ requests"
+echo "✓ psutil"
+echo "✓ aiohttp"
+echo "✓ python-whois"
+echo "✓ scapy"
+echo "✓ urllib3"
+
+echo
+
+echo -e "${GREEN}[✓] Setup Finished${RESET}"
