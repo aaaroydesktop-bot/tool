@@ -1,39 +1,97 @@
+import os
 import time
-import psutil
 import platform
-import socket
-import threading
 
 from rich.console import Console
 from rich.table import Table
-from rich.panel import Panel
 from rich.live import Live
 
 console = Console()
 
 # =========================================
-# STOP FLAG
+# RAM USAGE
 # =========================================
 
-stop_monitor = False
+def get_ram():
+
+    try:
+
+        # TERMUX / LINUX
+
+        if platform.system() != "Windows":
+
+            meminfo = {}
+
+            with open("/proc/meminfo") as f:
+
+                for line in f:
+
+                    key = line.split(":")[0]
+
+                    value = line.split(":")[1]
+
+                    meminfo[key] = int(
+                        value.strip().split()[0]
+                    )
+
+            total = (
+                meminfo["MemTotal"] / 1024
+            )
+
+            free = (
+                meminfo["MemAvailable"] / 1024
+            )
+
+            used = total - free
+
+            percent = (
+                used / total
+            ) * 100
+
+            return round(percent, 2)
+
+        # WINDOWS
+
+        else:
+
+            import psutil
+
+            return psutil.virtual_memory().percent
+
+    except:
+
+        return 0
 
 # =========================================
-# KEY LISTENER
+# CPU USAGE
 # =========================================
 
-def wait_for_exit():
+def get_cpu():
 
-    global stop_monitor
+    try:
 
-    while True:
+        # TERMUX / LINUX
 
-        cmd = input()
+        if platform.system() != "Windows":
 
-        if cmd.lower() == "q":
+            load = os.getloadavg()[0]
 
-            stop_monitor = True
+            return round(
+                load * 100 / os.cpu_count(),
+                2
+            )
 
-            break
+        # WINDOWS
+
+        else:
+
+            import psutil
+
+            return psutil.cpu_percent()
+
+    except:
+
+        return 0
 
 # =========================================
 # SYSTEM MONITOR
@@ -41,29 +99,10 @@ def wait_for_exit():
 
 def system_monitor():
 
-    global stop_monitor
-
-    stop_monitor = False
-
     console.print(
         "\n[yellow][*][/yellow] "
-        "Starting Live System Monitor..."
+        "Starting System Monitor...\n"
     )
-
-    console.print(
-        "[red]Press 'q' + Enter To Go Back[/red]\n"
-    )
-
-    # =====================================
-    # START INPUT THREAD
-    # =====================================
-
-    thread = threading.Thread(
-        target=wait_for_exit,
-        daemon=True
-    )
-
-    thread.start()
 
     try:
 
@@ -72,69 +111,11 @@ def system_monitor():
             screen=True
         ) as live:
 
-            while not stop_monitor:
+            while True:
 
-                # =================================
-                # CPU
-                # =================================
+                cpu = get_cpu()
 
-                cpu = psutil.cpu_percent()
-
-                # =================================
-                # RAM
-                # =================================
-
-                ram = psutil.virtual_memory()
-
-                ram_percent = ram.percent
-
-                ram_used = round(
-                    ram.used / (1024**3),
-                    2
-                )
-
-                ram_total = round(
-                    ram.total / (1024**3),
-                    2
-                )
-
-                # =================================
-                # DISK
-                # =================================
-
-                disk = psutil.disk_usage("/")
-
-                disk_percent = disk.percent
-
-                # =================================
-                # NETWORK
-                # =================================
-
-                net = psutil.net_io_counters()
-
-                sent = round(
-                    net.bytes_sent / (1024**2),
-                    2
-                )
-
-                recv = round(
-                    net.bytes_recv / (1024**2),
-                    2
-                )
-
-                # =================================
-                # SYSTEM INFO
-                # =================================
-
-                hostname = socket.gethostname()
-
-                system = platform.system()
-
-                release = platform.release()
-
-                # =================================
-                # TABLE
-                # =================================
+                ram = get_ram()
 
                 table = Table(
                     title="Live System Monitor"
@@ -157,58 +138,25 @@ def system_monitor():
 
                 table.add_row(
                     "RAM Usage",
-                    f"{ram_percent}%"
+                    f"{ram}%"
                 )
 
                 table.add_row(
-                    "RAM Used",
-                    f"{ram_used} GB / "
-                    f"{ram_total} GB"
+                    "Platform",
+                    platform.system()
                 )
 
                 table.add_row(
-                    "Disk Usage",
-                    f"{disk_percent}%"
+                    "CPU Cores",
+                    str(os.cpu_count())
                 )
 
-                table.add_row(
-                    "Upload",
-                    f"{sent} MB"
-                )
-
-                table.add_row(
-                    "Download",
-                    f"{recv} MB"
-                )
-
-                table.add_row(
-                    "Hostname",
-                    hostname
-                )
-
-                table.add_row(
-                    "System",
-                    f"{system} {release}"
-                )
-
-                # =================================
-                # PANEL
-                # =================================
-
-                panel = Panel.fit(
-                    table,
-                    border_style="cyan"
-                )
-
-                live.update(panel)
+                live.update(table)
 
                 time.sleep(1)
 
     except KeyboardInterrupt:
 
-        pass
-
-    console.print(
-        "\n[green][+][/green] "
-        "Returning To Main Menu..."
-    )
+        console.print(
+            "\n[red]Monitor Stopped[/red]"
+        )

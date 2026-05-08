@@ -2,7 +2,6 @@ rich
 requests
 urllib3
 colorama
-psutil
 aiohttp
 python-whois
 jinja2
