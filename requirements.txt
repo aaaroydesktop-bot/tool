@@ -1,1 +1,7 @@
+rich
+requests
 colorama
+psutil
+aiohttp
+python-whois
+jinja2
