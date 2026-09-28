@@ -199,6 +199,12 @@ def _arp_table() -> dict:
     return arp_command(scan=True, vendor=True)
 
 
+def _tls_audit() -> dict:
+    from modules.network import tls_audit
+
+    return tls_audit()
+
+
 def _firewall_status() -> dict:
     from modules.firewall import list_rules
 
@@ -278,6 +284,7 @@ def build_registry() -> list[tuple[str, list[tuple[str, str, callable]]]]:
             ("WHOIS Lookup", osint.whois_lookup),
             ("Vendor Detection", network.vendor_lookup),
             ("Technology Detection", network.detect_technology),
+            ("TLS / Certificate Audit", _tls_audit),
         ]),
         ("LOCAL NETWORK", [
             ("Local Network Scan", network.local_network_scan),

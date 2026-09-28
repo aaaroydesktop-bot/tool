@@ -55,6 +55,9 @@ from .ping import (
     ping_sweep,
     ping_test,
 )
+from .tls import audit as tls_report
+from .tls import policy_failed, present as present_tls, probe_protocols
+from .tls import tls_audit
 from .traceroute import trace as traceroute
 from .vendor import lookup as vendor_lookup
 from .speedtest import speed_test
@@ -74,4 +77,5 @@ __all__ = [
     "detect_os", "get_local_ip", "get_router_ip", "host_alive", "ping_once",
     "ping_sweep", "ping_test", "traceroute", "vendor_lookup", "speed_test",
     "detect_technology",
+    "tls_report", "tls_audit", "present_tls", "policy_failed", "probe_protocols",
 ]

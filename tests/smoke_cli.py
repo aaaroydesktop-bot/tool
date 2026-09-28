@@ -54,13 +54,14 @@ def main() -> int:
 
     # --- help / version -------------------------------------------------
     help_text = run(["--help"])
-    for command in ("scan", "dns", "local", "doctor", "history"):
+    for command in ("scan", "dns", "local", "doctor", "history", "tls"):
         if command not in help_text:
             FAILED.append(f"--help does not mention '{command}'")
     run(["--version"])
 
     # --- per-command help ----------------------------------------------
-    for command in ("scan", "headers", "subdomains", "history", "plugins", "ask"):
+    for command in ("scan", "headers", "subdomains", "history", "plugins",
+                    "ask", "tls"):
         run([command, "--help"])
 
     # --- real scan against loopback ------------------------------------
@@ -116,6 +117,20 @@ def main() -> int:
     run(["dns", "localhost", "--json"])
     run(["vendor", "B8:27:EB:00:00:01", "--offline", "--json"])
     run(["ask", "scan 192.168.1.1 ports 1-100", "--json"])
+
+    # --- TLS audit (offline: a closed loopback port) --------------------
+    tls_json = run(["tls", "127.0.0.1:1", "--no-protocols", "--json",
+                    "--no-history", "-t", "1"], expect=cli.EXIT_ERROR)
+    try:
+        audit = json.loads(tls_json)
+    except ValueError:
+        FAILED.append("tls --json did not produce valid JSON")
+    else:
+        if audit.get("kind") != "tls_audit":
+            FAILED.append("tls --json wrong kind")
+        if not audit.get("errors"):
+            FAILED.append("tls --json on a closed port should report an error")
+    run(["tls"], expect=cli.EXIT_USAGE)
 
     # --- history round trip --------------------------------------------
     run(["history", "--json", "-l", "5"])

@@ -39,7 +39,7 @@ HISTORY_ACTIONS = {
     "subdomains": "subdomain_scan", "tech": "technology_detection",
     "ping": "ping_test", "traceroute": "traceroute",
     "local": "local_network_scan", "speedtest": "speed_test",
-    "sysinfo": "sysinfo", "arp": "arp_table",
+    "sysinfo": "sysinfo", "arp": "arp_table", "tls": "tls_audit",
 }
 
 
@@ -169,6 +169,20 @@ def build_parser() -> argparse.ArgumentParser:
     arp.add_argument("-w", "--workers", type=int, default=128)
     arp.add_argument("-t", "--timeout", type=float, default=0.8)
     _add_common(arp)
+
+    # ---- TLS / certificate audit ----------------------------------------
+    tls = subparsers.add_parser(
+        "tls", help="deep TLS + certificate audit (trust, expiry, protocols, ciphers)")
+    tls.add_argument("target", nargs="?", help="host or host:port (default port 443)")
+    tls.add_argument("-p", "--port", type=int, default=None, help="override the port")
+    tls.add_argument("--no-protocols", action="store_true",
+                     help="skip the protocol matrix (fewer handshakes, faster)")
+    tls.add_argument("--expiry-days", type=int, default=None, metavar="N",
+                     help="exit non-zero when the certificate expires within N days")
+    tls.add_argument("--strict", action="store_true",
+                     help="exit non-zero on any weakness, not just trust or expiry")
+    tls.add_argument("-t", "--timeout", type=float, default=None)
+    _add_common(tls)
 
     # ---- system ---------------------------------------------------------
     sysinfo = subparsers.add_parser("sysinfo", help="CPU/RAM/storage/battery snapshot")
@@ -488,6 +502,31 @@ def cmd_arp(args) -> int:
     return _finish(report, args)
 
 
+def cmd_tls(args) -> int:
+    from modules.network import tls_report
+    from modules.network.tls import DEFAULT_TIMEOUT, policy_failed, present
+
+    if not args.target:
+        err("tls needs a host to audit (try: netscan tls github.com)")
+        return EXIT_USAGE
+
+    report = tls_report(args.target, port=args.port,
+                        timeout=args.timeout or DEFAULT_TIMEOUT,
+                        check_protocols=not args.no_protocols,
+                        expiry_days=args.expiry_days)
+    if not args.json:
+        present(report)
+    emit(report, args)
+
+    if report.get("errors") and not report.get("findings"):
+        return EXIT_ERROR
+    # A bad certificate is a finding, not a crash, so the exit code carries the
+    # verdict: scripts can gate a deploy on 'netscan tls host --expiry-days 30'.
+    if policy_failed(report, strict=args.strict):
+        return EXIT_ERROR
+    return EXIT_OK
+
+
 def cmd_sysinfo(args) -> int:
     from modules.monitoring import system_info
 
@@ -646,7 +685,7 @@ HANDLERS = {
     "whois": cmd_whois, "headers": cmd_headers, "subdomains": cmd_subdomains,
     "tech": cmd_tech, "vendor": cmd_vendor, "ping": cmd_ping,
     "traceroute": cmd_traceroute, "local": cmd_local, "arp": cmd_arp,
-    "sysinfo": cmd_sysinfo,
+    "tls": cmd_tls, "sysinfo": cmd_sysinfo,
     "monitor": cmd_monitor, "speedtest": cmd_speedtest, "history": cmd_history,
     "plugins": cmd_plugins, "block": cmd_block, "unblock": cmd_unblock,
     "firewall": cmd_firewall, "ask": cmd_ask, "doctor": cmd_doctor,

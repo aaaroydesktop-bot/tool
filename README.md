@@ -23,7 +23,7 @@ same engine works from a shell script, a cron job or a Termux widget.
 | Probing | banner read only | banners, **TLS version/cipher/fingerprint**, filtered vs closed |
 | Setup | one huge install | **fast, idempotent, failure-tolerant installer** |
 | Dependencies | 8 packages | 4 (and only `rich` is required to start) |
-| Tests | none | 130+ unit tests plus an end-to-end CLI smoke test |
+| Tests | none | 279 unit tests plus an end-to-end CLI smoke test |
 
 ## Install (Termux)
 
@@ -55,6 +55,7 @@ netscan scan 10.0.0.1 10.0.0.2 -p web     # several hosts
 netscan local --names                     # devices on your Wi-Fi
 netscan arp --vendor                      # IP + MAC of everything in the ARP cache
 netscan arp --scan --mac-only             # find sleeping devices, print ip<TAB>mac
+netscan tls github.com                    # deep TLS/certificate audit with a grade
 netscan watch 192.168.1.1 -p top --watch 60
 ```
 
@@ -79,6 +80,7 @@ netscan local --names > wifi.txt
 | `geo` | country/city/ISP for an IP — or your own public IP |
 | `whois` | registration data via **RDAP**, with WHOIS fallbacks |
 | `headers` | response headers **plus a security-header audit** |
+| `tls` | deep TLS audit: trust, expiry, protocol matrix, ciphers, SANs, letter grade |
 | `subdomains` | threaded enumeration with wildcard-DNS filtering |
 | `tech` | fingerprint servers, frameworks, CMS, analytics |
 | `vendor` | MAC → vendor from a built-in OUI table, API as backup |
@@ -130,6 +132,79 @@ name and IP without root.
 **`randomized` in the NOTE column** means the device uses a per-network privacy
 MAC (default on Android 10+ and iOS), so no vendor can ever be identified for
 it. Multicast/broadcast pseudo-entries are dropped instead of shown as devices.
+
+## Deep TLS audit (`netscan tls`)
+
+Most scanners stop at "port 443 is open". This one completes a real handshake,
+reads the certificate and tells you what a browser would have complained about:
+
+```
+$ netscan tls github.com
++--------------------------- TLS Audit ---------------------------+
+| grade A+   github.com:443                                       |
+| chain verified against the system trust store, hostname matches |
++-----------------------------------------------------------------+
+
+Certificate
+  subject            CN=github.com
+  issuer             CN=Sectigo Public Server Authentication CA DV E36, ...
+  serial             A59EBDB596751DB7F5C095079613953C
+  valid-from         2026-09-01T00:00:00+00:00
+  valid-until        2026-11-29T23:59:59+00:00
+  days-remaining     62
+  key                EC P-256
+  signature-algorithm ecdsa-with-SHA256
+  san-dns            github.com, www.github.com
+  ocsp               http://ocsp.sectigo.com
+  ca-issuers         http://crt.sectigo.com/SectigoPublicServerAuthenticationCADVE36.crt
+  certificate-transparency SCT present
+  negotiated         TLSv1.3 / TLS_AES_128_GCM_SHA256 / h2
+
+Protocol Support
+  TLSv1.3  supported  TLS_AES_128_GCM_SHA256
+  TLSv1.2  supported  ECDHE-ECDSA-AES128-GCM-SHA256
+  TLSv1.1  refused    client build disabled it
+  TLSv1    refused    client build disabled it
+
++ No weaknesses found - clean configuration.
+```
+
+It reports, in one pass:
+
+* **trust** — trusted, self-signed, expired, not-yet-valid, hostname mismatch or
+  unknown issuer, taken from a real *verifying* handshake
+* **full certificate detail** — subject, issuer, serial, validity with a
+  countdown, key algorithm/size/curve, signature algorithm, SHA-256 fingerprint
+* **SANs** — which double as a free source of extra hostnames for the target
+* **OCSP / CA-issuer endpoints** and whether a Certificate Transparency SCT is
+  present
+* **protocol matrix** — which versions the server still accepts, plus the cipher
+  negotiated for each; SSL/TLS 1.0 and 1.1 are called out as deprecated
+  (RFC 8996), and weak suites (RC4, 3DES, MD5, NULL, EXPORT, ...) are named
+* **forward secrecy** — flags any static-RSA key exchange
+* **a letter grade** (A+ … F), so a result reads at a glance
+
+A certificate that fails verification is still described in full, which is the
+whole point: the interesting findings live on the broken hosts. There is no
+dependency beyond the standard library — no `openssl` binary, no `cryptography`
+wheel, so it works on a bare Termux install.
+
+### Using it as a gate
+
+The exit code carries the verdict, so it drops straight into CI or a cron job:
+
+```bash
+netscan tls example.com --expiry-days 30      # fail if it expires within 30 days
+netscan tls example.com --strict              # fail on any weakness at all
+netscan tls example.com --json | jq .summary.grade
+```
+
+| flag | effect |
+|---|---|
+| `-p, --port` | audit a non-443 service (`--port 8443`) |
+| `--expiry-days N` | exit non-zero when the certificate expires within `N` days |
+| `--strict` | exit non-zero on any weakness, not just trust or expiry |
+| `--no-protocols` | skip the protocol matrix (fewer handshakes, faster) |
 
 ## Reports
 
@@ -187,16 +262,18 @@ core/
   netutil.py           port-spec + target parsing, formatting (pure, tested)
   environment.py       Termux/root/tool detection
   report.py            report building + JSON/MD/HTML/CSV/text renderers
+  asn1.py              dependency-free DER/X.509 reader (used by tls)
   http.py              shared requests session with sane defaults
   checker.py           dependency checks and the doctor report
 modules/
   network/             scanner, dns, geoip, headers, subdomain, ping,
-                       traceroute, speedtest, techdetect, localnet, vendor
+                       traceroute, speedtest, techdetect, localnet, vendor, tls
   osint.py             WHOIS/RDAP          monitoring.py  system telemetry
   history.py           SQLite history      firewall.py    rule management
   plugins.py           plugin loader       ai.py          text -> command
   reporting.py         compatibility shim
-tests/                 135 unit tests + smoke_cli.py end-to-end check
+tests/                 279 unit tests + smoke_cli.py end-to-end check
+  fixtures/            real DER certificates used by the ASN.1 tests
 ```
 
 Design rules the code sticks to:
@@ -249,6 +326,8 @@ netscan local --names             # আপনার Wi-Fi-এর সব ডি�
 netscan dns example.com           # DNS তথ্য
 netscan speedtest                 # ইন্টারনেট স্পিড
 netscan scan example.com -o report.html -f html   # HTML রিপোর্ট
+netscan tls github.com            # TLS/সার্টিফিকেট অডিট (গ্রেড সহ)
+netscan tls example.com --expiry-days 30   # ৩০ দিনের মধ্যে expire হলে ফেল করবে
 netscan doctor                    # সমস্যা আছে কিনা পরীক্ষা
 ```
 
