@@ -35,8 +35,17 @@ from .dns import lookup as dns_lookup
 from .geoip import lookup as geo_lookup
 from .headers import fetch as http_headers
 from .subdomain import scan as subdomain_scan
+from .localnet import arp_command, arp_report
+from .localnet import arp_table as read_arp_table
 from .localnet import discover as local_scan
 from .localnet import local_network_scan
+from .localnet import (
+    is_randomized_mac,
+    mac_note,
+    parse_neighbours,
+    read_neighbours,
+    vendor_for,
+)
 from .ping import (
     detect_os,
     get_local_ip,
@@ -60,6 +69,8 @@ __all__ = [
     "scan_ports", "diff_reports", "open_port_set",
     "dns_lookup", "geo_lookup", "http_headers", "subdomain_scan",
     "local_scan", "local_network_scan",
+    "arp_command", "arp_report", "read_arp_table", "read_neighbours",
+    "parse_neighbours", "is_randomized_mac", "mac_note", "vendor_for",
     "detect_os", "get_local_ip", "get_router_ip", "host_alive", "ping_once",
     "ping_sweep", "ping_test", "traceroute", "vendor_lookup", "speed_test",
     "detect_technology",

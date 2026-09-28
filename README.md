@@ -1,8 +1,8 @@
 # NetScan — Termux Networking Toolkit
 
-A fast, scriptable network toolkit built for **Termux on Android**, with a
-colourful interactive menu *and* a real command line so the same engine works
-from a shell script, a cron job or a Termux widget.
+**NetScan 5.0 Pro** — a fast, scriptable network toolkit built for **Termux on
+Android**, with a colourful interactive menu *and* a real command line so the
+same engine works from a shell script, a cron job or a Termux widget.
 
 ```
 ███╗   ██╗███████╗████████╗███████╗ ██████╗ █████╗ ███╗   ██╗
@@ -12,7 +12,9 @@ from a shell script, a cron job or a Termux widget.
 
 ## Why this version is different
 
-| | Before | Now |
+### What 5.0 Pro changed
+
+| | Before | 5.0 Pro |
 |---|---|---|
 | Interface | interactive menu only | menu **+ full CLI with subcommands** |
 | Output | printed tables | tables, **JSON / Markdown / HTML / CSV / text** |
@@ -51,6 +53,8 @@ netscan scan 192.168.1.1                  # top ports on one host
 netscan scan 192.168.1.1 -p 1-1024        # a range
 netscan scan 10.0.0.1 10.0.0.2 -p web     # several hosts
 netscan local --names                     # devices on your Wi-Fi
+netscan arp --vendor                      # IP + MAC of everything in the ARP cache
+netscan arp --scan --mac-only             # find sleeping devices, print ip<TAB>mac
 netscan watch 192.168.1.1 -p top --watch 60
 ```
 
@@ -68,6 +72,7 @@ netscan local --names > wifi.txt
 |---|---|
 | `scan` | TCP port scan: banners, TLS details, closed/filtered classification |
 | `local` | LAN discovery via ARP + parallel probes (works without root) |
+| `arp` | IP + MAC addresses from the ARP/neighbour cache, multi-source with diagnostics |
 | `ping` | latency, jitter, packet loss, TTL-based OS guess |
 | `traceroute` | hop-by-hop path (uses `traceroute`, else a ping TTL walk) |
 | `dns` | A/AAAA/PTR plus MX/NS/TXT when `dnsutils` is installed |
@@ -86,6 +91,45 @@ netscan local --names > wifi.txt
 | `doctor` | diagnose Python, modules, permissions, missing tools |
 
 Run `netscan <command> --help` for the full option list.
+
+## MAC addresses (`netscan arp`)
+
+Android hides the kernel ARP cache from non-root apps, and the source differs by
+platform, so the command tries **every** source, merges them, and tells you which
+one worked:
+
+```
+$ netscan arp --vendor
+┌────────────────┬───────────────────┬───────────────────┐
+│ 172.19.238.146 │ 00:15:5d:a4:c7:35 │ Microsoft Hyper-V │
+│ 192.168.1.1    │ 44:95:3b:a8:d4:b0 │ unknown           │
+└────────────────┴───────────────────┴───────────────────┘
++ Sources: arp -a (2)
+- /proc/net/arp: cannot read (No such file or directory)
+- ip neigh: not installed
+```
+
+Sources consulted, in order: `/proc/net/arp`, `ip neigh` (iproute2), `arp -a`
+(net-tools/busybox). A readable ARP cache only contains hosts your device has
+talked to, so `--scan` pings the subnet first — that is also what makes the
+kernel fill the cache.
+
+| flag | effect |
+|---|---|
+| `--scan` | ping the subnet first, so sleeping devices appear |
+| `--vendor` | add vendor names from the built-in OUI table |
+| `--mac-only` | print bare `ip<TAB>mac` lines for piping |
+| `-n, --network` | sweep a specific subnet |
+
+**Nothing came back?** That is expected on Android 10+ without root — the app
+sandbox blocks `/proc/net/*`. Fixes, in order of ease: install more sources
+(`pkg install iproute2 net-tools`), or run with root
+(`su -c 'netscan arp --vendor'`). `netscan local --names` still finds devices by
+name and IP without root.
+
+**`randomized` in the NOTE column** means the device uses a per-network privacy
+MAC (default on Android 10+ and iOS), so no vendor can ever be identified for
+it. Multicast/broadcast pseudo-entries are dropped instead of shown as devices.
 
 ## Reports
 

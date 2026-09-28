@@ -22,7 +22,7 @@ PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 if PROJECT_ROOT not in sys.path:  # runnable from any working directory
     sys.path.insert(0, PROJECT_ROOT)
 
-from core import TOOL_NAME, __version__  # noqa: E402
+from core import TOOL_NAME, VERSION_LABEL, __version__  # noqa: E402
 from core import console as console_module  # noqa: E402
 from core import report as reportlib  # noqa: E402
 from core.console import console, err, info, is_quiet, json_out, ok, warn  # noqa: E402
@@ -39,7 +39,7 @@ HISTORY_ACTIONS = {
     "subdomains": "subdomain_scan", "tech": "technology_detection",
     "ping": "ping_test", "traceroute": "traceroute",
     "local": "local_network_scan", "speedtest": "speed_test",
-    "sysinfo": "sysinfo",
+    "sysinfo": "sysinfo", "arp": "arp_table",
 }
 
 
@@ -71,12 +71,12 @@ def _add_common(parser: argparse.ArgumentParser) -> None:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="netscan",
-        description=f"{TOOL_NAME} {__version__} - Termux networking toolkit",
+        description=f"{TOOL_NAME} {VERSION_LABEL} - Termux networking toolkit",
         epilog="Run 'netscan doctor' to check your Termux setup.",
         formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     parser.add_argument("--version", action="version",
-                        version=f"{TOOL_NAME} {__version__}")
+                        version=f"{TOOL_NAME} {VERSION_LABEL}")
     _add_common(parser)
 
     subparsers = parser.add_subparsers(dest="command", metavar="COMMAND")
@@ -150,9 +150,25 @@ def build_parser() -> argparse.ArgumentParser:
     local.add_argument("-n", "--network", help="subnet in CIDR notation")
     local.add_argument("--names", action="store_true", help="reverse-resolve hostnames")
     local.add_argument("--vendor", action="store_true", help="add MAC vendor names")
+    local.add_argument("--mac-only", action="store_true",
+                       help="print bare 'ip<TAB>mac' lines for scripting")
     local.add_argument("-w", "--workers", type=int, default=128)
     local.add_argument("-t", "--timeout", type=float, default=0.8)
     _add_common(local)
+
+    # ---- ARP / MAC table -------------------------------------------------
+    arp = subparsers.add_parser(
+        "arp", help="show IP + MAC addresses from the ARP/neighbour cache")
+    arp.add_argument("-n", "--network", help="subnet to sweep when used with --scan")
+    arp.add_argument("--scan", action="store_true",
+                     help="ping the subnet first so sleeping devices appear")
+    arp.add_argument("--vendor", action="store_true",
+                     help="add vendor names (offline OUI table)")
+    arp.add_argument("--mac-only", action="store_true",
+                     help="print bare 'ip<TAB>mac' lines for scripting")
+    arp.add_argument("-w", "--workers", type=int, default=128)
+    arp.add_argument("-t", "--timeout", type=float, default=0.8)
+    _add_common(arp)
 
     # ---- system ---------------------------------------------------------
     sysinfo = subparsers.add_parser("sysinfo", help="CPU/RAM/storage/battery snapshot")
@@ -458,7 +474,18 @@ def cmd_local(args) -> int:
 
     return _finish(local_scan(args.network, workers=args.workers,
                               timeout=args.timeout, resolve_names=args.names,
-                              vendor=args.vendor), args)
+                              vendor=args.vendor, mac_only=args.mac_only), args)
+
+
+def cmd_arp(args) -> int:
+    from modules.network import arp_report
+    from modules.network.localnet import present_arp
+
+    report = arp_report(network=args.network, scan=args.scan, vendor=args.vendor,
+                        workers=args.workers, timeout=args.timeout)
+    if not args.json:
+        present_arp(report, mac_only=args.mac_only)
+    return _finish(report, args)
 
 
 def cmd_sysinfo(args) -> int:
@@ -618,7 +645,8 @@ HANDLERS = {
     "menu": cmd_menu, "scan": cmd_scan, "dns": cmd_dns, "geo": cmd_geo,
     "whois": cmd_whois, "headers": cmd_headers, "subdomains": cmd_subdomains,
     "tech": cmd_tech, "vendor": cmd_vendor, "ping": cmd_ping,
-    "traceroute": cmd_traceroute, "local": cmd_local, "sysinfo": cmd_sysinfo,
+    "traceroute": cmd_traceroute, "local": cmd_local, "arp": cmd_arp,
+    "sysinfo": cmd_sysinfo,
     "monitor": cmd_monitor, "speedtest": cmd_speedtest, "history": cmd_history,
     "plugins": cmd_plugins, "block": cmd_block, "unblock": cmd_unblock,
     "firewall": cmd_firewall, "ask": cmd_ask, "doctor": cmd_doctor,
@@ -634,10 +662,13 @@ def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
 
-    # --json promises a machine-readable stdout, so human chatter is silenced
-    # for the whole run. Errors still reach stderr.
+    # --json and --mac-only promise machine-readable stdout, so human chatter is
+    # silenced for the whole run. Errors still reach stderr, and --mac-only rows
+    # are printed with builtin print() so they survive the quieting.
     console_module.configure(
-        quiet=bool(getattr(args, "quiet", False) or getattr(args, "json", False)),
+        quiet=bool(getattr(args, "quiet", False)
+                   or getattr(args, "json", False)
+                   or getattr(args, "mac_only", False)),
         color=False if getattr(args, "no_color", False) else None,
     )
 

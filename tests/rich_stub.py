@@ -4,7 +4,7 @@ A minimal stand-in for Rich.
 NetScan's only hard dependency is Rich, and every other import is lazy.  When
 Rich is genuinely unavailable (a bare Termux install, minimal CI) this module
 lets the import graph, the CLI wiring and the scanning engine still be
-exercised — it renders nothing, but it never raises.
+exercised - it renders nothing, but it never raises.
 """
 
 from __future__ import annotations

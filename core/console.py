@@ -76,6 +76,15 @@ def err(message) -> None:
     _state["stderr"].print(f"[red][x][/red] {message}")
 
 
+def note(message) -> None:
+    """Diagnostic advice on stderr: never silenced, never pollutes stdout.
+
+    Used for "here is why this came back empty" text, so that commands promising
+    machine-readable stdout (``--json``, ``--mac-only``) stay pipeable.
+    """
+    _state["stderr"].print(message)
+
+
 def section(title: str) -> None:
     say(f"\n[bold cyan]{title}[/bold cyan]")
 

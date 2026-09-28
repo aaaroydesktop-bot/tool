@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import json
 
-USER_AGENT = "NetScan/5.0 (+https://termux.dev)"
+from . import __version__
+
+USER_AGENT = f"NetScan/{__version__} (+https://termux.dev)"
 
 DEFAULT_TIMEOUT = 8
 DEFAULT_HEADERS = {"User-Agent": USER_AGENT, "Accept": "*/*"}

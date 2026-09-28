@@ -1,4 +1,4 @@
-"""Tests for core.netutil — pure parsing logic, no dependencies."""
+"""Tests for core.netutil - pure parsing logic, no dependencies."""
 
 from __future__ import annotations
 

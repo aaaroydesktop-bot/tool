@@ -16,7 +16,7 @@ import json
 import os
 import re
 
-from . import TOOL_NAME, __version__
+from . import EDITION, TOOL_NAME, __version__
 
 DEFAULT_DIR = "reports"
 FORMATS = ("json", "md", "html", "csv", "txt")
@@ -34,6 +34,7 @@ def new_report(kind: str, target: str, **meta) -> dict:
     return {
         "tool": TOOL_NAME,
         "version": __version__,
+        "edition": EDITION,
         "kind": kind,
         "target": target,
         "started": datetime.datetime.now().isoformat(timespec="seconds"),

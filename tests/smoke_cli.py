@@ -2,7 +2,7 @@
 End-to-end CLI smoke test.
 
 Runs the real command line against loopback, so it exercises argument parsing,
-the scanning engine, report writing and history — without needing a network or
+the scanning engine, report writing and history - without needing a network or
 a Rich install.
 
     python tests/smoke_cli.py
@@ -96,6 +96,22 @@ def main() -> int:
             PASSED.append(f"report written: {os.path.basename(target)}")
 
     # --- local network, ping, dns --------------------------------------
+    arp_json = run(["arp", "--json", "--no-history"])
+    try:
+        arp = json.loads(arp_json)
+    except ValueError:
+        FAILED.append("arp --json did not produce valid JSON")
+    else:
+        if arp.get("kind") != "arp_table":
+            FAILED.append("arp --json wrong kind")
+        if "entries" not in arp.get("summary", {}):
+            FAILED.append("arp --json missing summary.entries")
+        for finding in arp.get("findings", []):
+            if len(str(finding.get("mac", "")).split(":")) != 6:
+                FAILED.append(f"arp finding has a bad MAC: {finding}")
+            break
+    run(["arp", "--mac-only", "--no-history"])
+
     run(["ping", "127.0.0.1", "-c", "1", "--timeout", "1", "--json"])
     run(["dns", "localhost", "--json"])
     run(["vendor", "B8:27:EB:00:00:01", "--offline", "--json"])

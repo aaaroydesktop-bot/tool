@@ -51,7 +51,7 @@ fail()  { echo -e "${RED}[x]${RESET} $1"; }
 
 clear
 echo -e "${CYAN}=============================================="
-echo "              NETSCAN INSTALLER"
+echo "           NETSCAN 5.0 PRO INSTALLER"
 echo -e "==============================================${RESET}"
 echo
 
@@ -107,7 +107,8 @@ fi
 # --------------------------------------------------------------------------
 
 REQUIRED_PKGS="python python-pip git openssl libffi termux-api"
-OPTIONAL_PKGS="nmap iproute2 dnsutils whois curl"
+# net-tools/busybox provide extra ARP-table sources for `netscan arp`.
+OPTIONAL_PKGS="nmap iproute2 net-tools dnsutils whois curl"
 
 step "Installing required packages: $REQUIRED_PKGS"
 # shellcheck disable=SC2086
@@ -218,7 +219,7 @@ echo
 
 if [ "$INSTALL_STATUS" = "SUCCESS" ]; then
     echo -e "${GREEN}=============================================="
-    echo "        NETSCAN INSTALL COMPLETE"
+    echo "     NETSCAN 5.0 PRO INSTALL COMPLETE"
     echo -e "==============================================${RESET}"
 else
     echo -e "${RED}=============================================="

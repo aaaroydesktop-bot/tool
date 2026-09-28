@@ -1,4 +1,4 @@
-"""Tests for core.environment — detection helpers must never raise."""
+"""Tests for core.environment - detection helpers must never raise."""
 
 from __future__ import annotations
 

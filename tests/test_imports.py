@@ -2,14 +2,15 @@
 Import-graph and wiring tests.
 
 Only ``rich`` is a hard dependency, so when it is not installed this module
-injects a minimal stand-in.  That keeps these tests runnable anywhere — CI,
-a fresh Termux install before pip finishes, or a bare Python — while still
+injects a minimal stand-in.  That keeps these tests runnable anywhere - CI,
+a fresh Termux install before pip finishes, or a bare Python - while still
 proving that every module imports and that the CLI is correctly wired.
 """
 
 from __future__ import annotations
 
 import os
+import pathlib
 import sys
 import unittest
 
@@ -199,6 +200,116 @@ class TestChecker(unittest.TestCase):
             self.assertIn(finding["status"], ("ok", "warn", "fail"))
 
 
+class TestVersionMetadata(unittest.TestCase):
+    def test_label_matches_version_and_edition(self):
+        from core import EDITION, VERSION_LABEL, __version__
+
+        self.assertEqual(VERSION_LABEL, f"{__version__} {EDITION}")
+        self.assertEqual(EDITION, "Pro")
+
+    def test_reports_carry_version_and_edition(self):
+        """``version`` stays machine-readable; the edition is a separate field."""
+        from core import EDITION, __version__, report as reportlib
+
+        report = reportlib.new_report("x", "y")
+        self.assertEqual(report["version"], __version__)
+        self.assertEqual(report["edition"], EDITION)
+        self.assertNotIn(" ", report["version"], "version must be comparable")
+
+    def test_cli_advertises_the_label(self):
+        import cli
+
+        from core import VERSION_LABEL
+
+        parser = cli.build_parser()
+        self.assertIn(VERSION_LABEL, parser.description)
+        self.assertEqual(parser.prog, "netscan")
+
+    def test_can_encode(self):
+        from unittest import mock
+
+        from core import banner as banner_module
+
+        with mock.patch.object(banner_module, "_stdout_encoding", return_value="ascii"):
+            self.assertTrue(banner_module._can_encode("plain ascii"))
+            self.assertFalse(banner_module._can_encode("\u2588"))
+        with mock.patch.object(banner_module, "_stdout_encoding", return_value="utf-8"):
+            self.assertTrue(banner_module._can_encode("\u2588"))
+
+    def test_logo_falls_back_to_ascii_when_needed(self):
+        """A non-UTF-8 console used to crash the menu before it drew anything."""
+        from unittest import mock
+
+        from core import banner as banner_module
+
+        for encoding, expected in (("utf-8", banner_module._LOGO_UNICODE),
+                                   ("cp1252", banner_module._LOGO_ASCII),
+                                   ("ascii", banner_module._LOGO_ASCII)):
+            with self.subTest(encoding=encoding):
+                with mock.patch.object(banner_module, "_stdout_encoding",
+                                       return_value=encoding):
+                    self.assertEqual(banner_module.logo(), expected)
+
+    def test_ascii_logo_is_pure_ascii(self):
+        from core import banner as banner_module
+
+        self.assertTrue(banner_module._LOGO_ASCII.isascii())
+        self.assertFalse(banner_module._LOGO_UNICODE.isascii())
+
+    def test_banner_survives_a_hostile_encoding(self):
+        from unittest import mock
+
+        from core import banner as banner_module
+
+        with mock.patch.object(banner_module, "_stdout_encoding", return_value="ascii"):
+            banner_module.banner(show_logo=False)  # must not raise
+        with mock.patch.object(banner_module, "logo",
+                              side_effect=UnicodeEncodeError("ascii", "x", 0, 1, "boom")):
+            banner_module.banner(show_logo=False)  # must not raise either
+
+    def test_user_agent_tracks_the_version(self):
+        from core import __version__
+        from core.http import USER_AGENT
+
+        self.assertIn(__version__, USER_AGENT)
+
+
+class TestSourceHygiene(unittest.TestCase):
+    """Guards two footguns that only show up on the target platform."""
+
+    #: The banner is deliberate ASCII art and is the one exception.
+    NON_ASCII_ALLOWED = {"banner.py"}
+
+    def test_python_sources_stay_ascii(self):
+        """A non-ASCII glyph renders as mojibake on non-UTF-8 Termux consoles."""
+        offenders: dict[str, list[str]] = {}
+        for path in pathlib.Path(ROOT).rglob("*.py"):
+            if "__pycache__" in path.parts or path.name in self.NON_ASCII_ALLOWED:
+                continue
+            text = path.read_text(encoding="utf-8", errors="ignore")
+            chars = sorted({char for char in text if ord(char) > 127})
+            if chars:
+                offenders[str(path.relative_to(ROOT))] = [
+                    f"U+{ord(char):04X}" for char in chars
+                ]
+        self.assertEqual(offenders, {}, f"non-ASCII characters found: {offenders}")
+
+    def test_shell_scripts_use_lf_endings(self):
+        """CRLF makes Termux fail with 'bad interpreter: ^M'."""
+        for name in ("install.sh", "bin/netscan"):
+            with self.subTest(script=name):
+                raw = (pathlib.Path(ROOT) / name).read_bytes()
+                self.assertNotIn(b"\r\n", raw)
+                self.assertTrue(raw.startswith(b"#!"), "missing shebang")
+
+    def test_shell_scripts_use_the_termux_shebang(self):
+        """Termux has no /usr/bin, so '#! /usr/bin/env bash' cannot work."""
+        for name in ("install.sh", "bin/netscan"):
+            with self.subTest(script=name):
+                first = (pathlib.Path(ROOT) / name).read_bytes().splitlines()[0]
+                self.assertIn(b"com.termux", first)
+
+
 class TestMenuRegistry(unittest.TestCase):
     def test_numbers_are_contiguous_and_handlers_callable(self):
         import main
@@ -209,6 +320,14 @@ class TestMenuRegistry(unittest.TestCase):
             self.assertTrue(label, f"#{number} has no label")
             self.assertTrue(callable(handler), f"#{number} ({label}) is not callable")
         self.assertEqual(sum(len(items) for _, items in display), len(entries))
+
+    def test_arp_is_reachable_from_the_menu(self):
+        import main
+
+        _, display = main._numbered(main.build_registry())
+        labels = [label.lower() for _, items in display for _, label in items]
+        self.assertTrue(any("mac" in label for label in labels),
+                        "no menu entry mentions MAC addresses")
 
     def test_every_menu_entry_has_a_unique_label(self):
         import main

@@ -13,7 +13,7 @@ import platform
 import sqlite3
 import sys
 
-from . import __version__
+from . import EDITION, __version__
 from . import report as reportlib
 from .console import err, warn
 
@@ -182,6 +182,7 @@ def doctor(strict: bool = False) -> dict:
         report,
         healthy=healthy,
         version=__version__,
+        edition=EDITION,
         history_entries=history_entries,
         missing_optional=missing_optional,
     )

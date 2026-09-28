@@ -18,7 +18,7 @@ PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
 if PROJECT_ROOT not in sys.path:  # importable from any working directory
     sys.path.insert(0, PROJECT_ROOT)
 
-from core import TOOL_NAME, __version__, checker, report as reportlib  # noqa: E402
+from core import TOOL_NAME, VERSION_LABEL, checker, report as reportlib  # noqa: E402
 from core.banner import banner  # noqa: E402
 from core.console import console, err, info, is_quiet, ok, warn  # noqa: E402
 from core.menu import render  # noqa: E402
@@ -193,6 +193,12 @@ def _sysinfo() -> dict:
     return system_info()
 
 
+def _arp_table() -> dict:
+    from modules.network import arp_command
+
+    return arp_command(scan=True, vendor=True)
+
+
 def _firewall_status() -> dict:
     from modules.firewall import list_rules
 
@@ -275,6 +281,7 @@ def build_registry() -> list[tuple[str, list[tuple[str, str, callable]]]]:
         ]),
         ("LOCAL NETWORK", [
             ("Local Network Scan", network.local_network_scan),
+            ("ARP Table (IP + MAC)", _arp_table),
             ("Firewall Status", _firewall_status),
             ("Block IP", _block_ip),
             ("Unblock IP", _unblock_ip),
@@ -326,7 +333,7 @@ def run_menu() -> int:
     init_db()
 
     if not is_quiet():
-        console.print(f"[dim]{TOOL_NAME} {__version__} | interactive mode[/dim]")
+        console.print(f"[dim]{TOOL_NAME} {VERSION_LABEL} | interactive mode[/dim]")
 
     while True:
         entries, display = _numbered(build_registry())

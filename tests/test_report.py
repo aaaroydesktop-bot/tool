@@ -1,4 +1,4 @@
-"""Tests for core.report — building, rendering and writing reports."""
+"""Tests for core.report - building, rendering and writing reports."""
 
 from __future__ import annotations
 
