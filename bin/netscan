@@ -1,0 +1,28 @@
+#!/data/data/com.termux/files/usr/bin/bash
+#
+# NetScan launcher.
+#
+# install.sh copies this file to $PREFIX/bin/netscan and replaces
+# __NETSCAN_HOME__ with the real checkout path.  Override it at runtime with:
+#     NETSCAN_HOME=/path/to/netscan netscan
+
+NETSCAN_HOME="${NETSCAN_HOME:-__NETSCAN_HOME__}"
+
+if [ ! -d "$NETSCAN_HOME" ]; then
+    echo "netscan: project directory not found: $NETSCAN_HOME" >&2
+    echo "netscan: set NETSCAN_HOME or re-run install.sh" >&2
+    exit 1
+fi
+
+cd "$NETSCAN_HOME" || exit 1
+
+if command -v python >/dev/null 2>&1; then
+    PY=python
+elif command -v python3 >/dev/null 2>&1; then
+    PY=python3
+else
+    echo "netscan: python is not installed (pkg install python)" >&2
+    exit 1
+fi
+
+exec "$PY" main.py "$@"

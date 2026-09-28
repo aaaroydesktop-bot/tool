@@ -1,0 +1,14 @@
+# NetScan runtime requirements (Termux: pip install -r requirements.txt)
+#
+# Only pure-python / wheel-friendly packages live here. Everything the toolkit
+# can do without a dependency (scanning, DNS, ping, local discovery, system
+# telemetry) uses the standard library on purpose, so a bare Termux install
+# works even before pip finishes.
+
+rich>=13.0            # terminal UI, tables, progress, prompt
+requests>=2.28        # HTTP modules: headers, geo, tech, whois, speed test
+urllib3>=1.26         # TLS handling for requests
+python-whois>=0.9     # WHOIS fallback when RDAP has no answer
+
+# Optional extras — enable if you want them, none are required:
+# psutil>=5.9         # more accurate CPU/RAM metrics on non-Linux hosts

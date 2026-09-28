@@ -1,0 +1,30 @@
+# This project runs on Termux (Linux/Android).
+#
+# Without this file, Git on Windows rewrites LF as CRLF on checkout, and a
+# CRLF shell script then fails in Termux with:
+#     bash: install.sh: /data/data/com.termux/files/usr/bin/bash^M: bad interpreter
+#
+# So: normalise every text file to LF, in the repo *and* in the working copy.
+
+* text=auto eol=lf
+
+# Release archives staged by the installer must stay LF too.
+*.sh    text eol=lf
+*.py    text eol=lf
+*.md    text eol=lf
+*.txt   text eol=lf
+*.json  text eol=lf
+*.toml  text eol=lf
+*.yml   text eol=lf
+*.cfg   text eol=lf
+bin/netscan text eol=lf
+
+# Binaries: never touch these.
+*.png  binary
+*.jpg  binary
+*.jpeg binary
+*.gif  binary
+*.ico  binary
+*.zip  binary
+*.db   binary
+*.pyc  binary

@@ -1,0 +1,29 @@
+# ---- python ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+
+# ---- netscan runtime output ----
+reports/
+logs/
+*.log
+
+# the history database ships empty; never commit real scan data
+database/*.db
+database/*.db-journal
+database/*.db-wal
+
+# ---- tooling metadata ----
+.freebuff/
+
+# ---- editors / os ----
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
